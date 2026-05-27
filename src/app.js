@@ -11,6 +11,15 @@ app.get("/health", (req, res) => {
   res.json({ ok: true });
 });
 
+app.use(async (req, res, next) => {
+  try {
+    await connectMongo();
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.use(reconcileRoutes);
 
 app.use((req, res) => {

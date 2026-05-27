@@ -183,6 +183,30 @@ npm test
 
 Current tests cover the matching cases that are easiest to break: opposite transfer direction, quantity tolerance conflicts, and percentage difference math.
 
+## Deploying to Vercel
+
+This repo includes `api/index.js` and `vercel.json`, so Vercel can run the Express app as a serverless API.
+
+Before deploying, create a MongoDB Atlas database. The local Docker database will not be reachable from Vercel.
+
+In Vercel, import the GitHub repo and add these environment variables:
+
+| Name | Value |
+| --- | --- |
+| `MONGO_URI` | MongoDB Atlas connection string |
+| `DATA_DIR` | `./data` |
+| `REPORT_DIR` | `/tmp/reports` |
+| `LOG_DIR` | `/tmp/logs` |
+| `TIMESTAMP_TOLERANCE_SECONDS` | `300` |
+| `QUANTITY_TOLERANCE_PCT` | `0.01` |
+
+After deployment, check:
+
+```http
+GET https://your-vercel-url.vercel.app/health
+POST https://your-vercel-url.vercel.app/reconcile
+```
+
 ## Decisions and tradeoffs
 
 - No auth is included. The assignment API did not mention users or permissions, so adding auth would mostly add noise.

@@ -1,8 +1,9 @@
 const fs = require("fs/promises");
 const path = require("path");
+const config = require("./config");
 
 async function logDataIssue(runId, message, meta = {}) {
-  const dir = path.resolve(process.cwd(), "logs");
+  const dir = config.logDir;
   await fs.mkdir(dir, { recursive: true });
 
   const line = JSON.stringify({
