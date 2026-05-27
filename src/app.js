@@ -8,14 +8,27 @@ const app = express();
 
 app.use(express.json({ limit: "1mb" }));
 
-app.get("/health", (req, res) => {
-  res.json({
-    ok: true,
-    mongo: {
-      connected: mongoose.connection.readyState === 1,
-      readyState: mongoose.connection.readyState
-    }
-  });
+app.get("/health", async (req, res) => {
+  try {
+    await connectMongo();
+
+    res.json({
+      ok: true,
+      mongo: {
+        connected: mongoose.connection.readyState === 1,
+        readyState: mongoose.connection.readyState
+      }
+    });
+  } catch (error) {
+    res.status(503).json({
+      ok: false,
+      mongo: {
+        connected: false,
+        readyState: mongoose.connection.readyState
+      },
+      error: error.message
+    });
+  }
 });
 
 app.use(async (req, res, next) => {
