@@ -10,7 +10,9 @@ const reconciliationRunSchema = new mongoose.Schema(
     },
     config: {
       timestampToleranceSeconds: Number,
-      quantityTolerancePct: Number
+      quantityTolerancePct: Number,
+      conflictWindowSeconds: Number,
+      conflictQuantityTolerancePct: Number
     },
     files: {
       user: String,

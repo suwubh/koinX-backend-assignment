@@ -231,8 +231,8 @@ In Vercel, import the GitHub repo and add these environment variables:
 After deployment, check:
 
 ```http
-GET https://your-vercel-url.vercel.app/health
-POST https://your-vercel-url.vercel.app/reconcile
+GET https://koin-x-backend-assignment-three.vercel.app/health
+POST https://koin-x-backend-assignment-three.vercel.app/reconcile
 ```
 
 On Vercel, generated CSV files and audit logs are written under `/tmp`. They are useful during that function invocation, but they should not be treated as permanent storage. The report APIs read from MongoDB, so `GET /report/:runId` and `GET /report/:runId?format=csv` still work after the temporary files are gone.
