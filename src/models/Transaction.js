@@ -16,12 +16,11 @@ const transactionSchema = new mongoose.Schema(
       fee: { type: Number }
     },
     valid: { type: Boolean, required: true, index: true },
-    issues: [{ type: String }],
-    matched: { type: Boolean, default: false, index: true }
+    issues: [{ type: String }]
   },
   { timestamps: true }
 );
 
-transactionSchema.index({ runId: 1, source: 1, matched: 1 });
+transactionSchema.index({ runId: 1, source: 1, valid: 1 });
 
 module.exports = mongoose.model("Transaction", transactionSchema);

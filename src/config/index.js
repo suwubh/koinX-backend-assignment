@@ -13,6 +13,8 @@ function readNumber(name, fallback) {
 const rootDir = path.resolve(__dirname, "..", "..");
 const defaultReportDir = process.env.VERCEL ? "/tmp/reports" : "reports";
 const defaultLogDir = process.env.VERCEL ? "/tmp/logs" : "logs";
+const timestampToleranceSeconds = readNumber("TIMESTAMP_TOLERANCE_SECONDS", 300);
+const quantityTolerancePct = readNumber("QUANTITY_TOLERANCE_PCT", 0.01);
 
 module.exports = {
   port: readNumber("PORT", 3000),
@@ -21,7 +23,9 @@ module.exports = {
   reportDir: path.resolve(rootDir, process.env.REPORT_DIR || defaultReportDir),
   logDir: path.resolve(rootDir, process.env.LOG_DIR || defaultLogDir),
   defaultTolerance: {
-    timestampSeconds: readNumber("TIMESTAMP_TOLERANCE_SECONDS", 300),
-    quantityPct: readNumber("QUANTITY_TOLERANCE_PCT", 0.01)
+    timestampSeconds: timestampToleranceSeconds,
+    quantityPct: quantityTolerancePct,
+    conflictWindowSeconds: readNumber("CONFLICT_WINDOW_SECONDS", 3600),
+    conflictQuantityPct: readNumber("CONFLICT_QUANTITY_TOLERANCE_PCT", 1)
   }
 };

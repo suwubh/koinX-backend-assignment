@@ -11,10 +11,10 @@ async function reconcileTransactions(runId, tolerance) {
   const reportEntries = [];
   const validUsers = userRows.filter((row) => row.valid);
   const validExchanges = exchangeRows.filter((row) => row.valid);
-  const unusedExchangeIds = new Set(validExchanges.map((row) => String(row._id)));
+  const unusedExchanges = new Map(validExchanges.map((row) => [String(row._id), row]));
 
   for (const userTx of validUsers) {
-    const exchangePool = validExchanges.filter((row) => unusedExchangeIds.has(String(row._id)));
+    const exchangePool = Array.from(unusedExchanges.values());
     const candidate = findBestCandidate(userTx, exchangePool, tolerance);
 
     if (!candidate) {
@@ -28,13 +28,13 @@ async function reconcileTransactions(runId, tolerance) {
       continue;
     }
 
-    unusedExchangeIds.delete(String(candidate.exchangeTx._id));
+    unusedExchanges.delete(String(candidate.exchangeTx._id));
 
     const category = candidate.category;
     const reason =
       category === "MATCHED"
         ? "within configured timestamp and quantity tolerance"
-        : buildConflictReason(candidate.deltas, tolerance);
+        : buildConflictReason({ userTx, ...candidate }, tolerance);
 
     reportEntries.push({
       runId,
@@ -61,7 +61,7 @@ async function reconcileTransactions(runId, tolerance) {
     });
 
   validExchanges
-    .filter((row) => unusedExchangeIds.has(String(row._id)))
+    .filter((row) => unusedExchanges.has(String(row._id)))
     .forEach((row) => {
       reportEntries.push({
         runId,
@@ -86,18 +86,6 @@ async function reconcileTransactions(runId, tolerance) {
   if (reportEntries.length) {
     await ReportEntry.insertMany(reportEntries);
   }
-
-  await Transaction.updateMany(
-    {
-      _id: {
-        $in: reportEntries
-          .filter((entry) => entry.category === "MATCHED" || entry.category === "CONFLICTING")
-          .flatMap((entry) => [entry.userTransaction, entry.exchangeTransaction])
-          .filter(Boolean)
-      }
-    },
-    { $set: { matched: true } }
-  );
 
   return reportEntries.reduce(
     (counts, entry) => {

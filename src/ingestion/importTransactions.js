@@ -85,7 +85,7 @@ async function importTransactions({ runId, source, filePath }) {
     });
   });
 
-  const inserted = docs.length ? await Transaction.insertMany(docs, { ordered: false }) : [];
+  const inserted = docs.length ? await Transaction.insertMany(docs) : [];
 
   const badRows = docs.filter((doc) => !doc.valid);
   await Promise.all(

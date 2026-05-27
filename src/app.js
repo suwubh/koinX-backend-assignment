@@ -1,4 +1,5 @@
 const express = require("express");
+const mongoose = require("mongoose");
 const { connectMongo } = require("./db/mongo");
 const config = require("./config");
 const reconcileRoutes = require("./routes/reconcileRoutes");
@@ -8,7 +9,13 @@ const app = express();
 app.use(express.json({ limit: "1mb" }));
 
 app.get("/health", (req, res) => {
-  res.json({ ok: true });
+  res.json({
+    ok: true,
+    mongo: {
+      connected: mongoose.connection.readyState === 1,
+      readyState: mongoose.connection.readyState
+    }
+  });
 });
 
 app.use(async (req, res, next) => {

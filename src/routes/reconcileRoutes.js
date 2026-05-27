@@ -29,8 +29,18 @@ function getTolerance(body = {}) {
     timestampToleranceSeconds: Number(
       body.timestampToleranceSeconds ?? config.defaultTolerance.timestampSeconds
     ),
-    quantityTolerancePct: Number(body.quantityTolerancePct ?? config.defaultTolerance.quantityPct)
+    quantityTolerancePct: Number(body.quantityTolerancePct ?? config.defaultTolerance.quantityPct),
+    conflictWindowSeconds: Number(
+      body.conflictWindowSeconds ?? config.defaultTolerance.conflictWindowSeconds
+    ),
+    conflictQuantityTolerancePct: Number(
+      body.conflictQuantityTolerancePct ?? config.defaultTolerance.conflictQuantityPct
+    )
   };
+}
+
+function reportCsvUrl(runId) {
+  return `/report/${runId}?format=csv`;
 }
 
 router.post("/reconcile", async (req, res, next) => {
@@ -40,10 +50,17 @@ router.post("/reconcile", async (req, res, next) => {
   if (
     !Number.isFinite(tolerance.timestampToleranceSeconds) ||
     !Number.isFinite(tolerance.quantityTolerancePct) ||
+    !Number.isFinite(tolerance.conflictWindowSeconds) ||
+    !Number.isFinite(tolerance.conflictQuantityTolerancePct) ||
     tolerance.timestampToleranceSeconds < 0 ||
-    tolerance.quantityTolerancePct < 0
+    tolerance.quantityTolerancePct < 0 ||
+    tolerance.conflictWindowSeconds < tolerance.timestampToleranceSeconds ||
+    tolerance.conflictQuantityTolerancePct < tolerance.quantityTolerancePct
   ) {
-    return res.status(400).json({ error: "tolerance values must be non-negative numbers" });
+    return res.status(400).json({
+      error:
+        "tolerance values must be valid numbers; conflict tolerances cannot be smaller than match tolerances"
+    });
   }
 
   let run;
@@ -83,7 +100,7 @@ router.post("/reconcile", async (req, res, next) => {
       runId,
       status: run.status,
       counts,
-      reportCsvPath,
+      reportCsvUrl: reportCsvUrl(runId),
       imported: {
         user: userImport,
         exchange: exchangeImport

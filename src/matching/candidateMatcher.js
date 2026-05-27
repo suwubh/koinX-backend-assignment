@@ -26,39 +26,73 @@ function canCompare(userTx, exchangeTx) {
   );
 }
 
+function hasSameTransactionId(userTx, exchangeTx) {
+  return Boolean(
+    userTx.transactionId &&
+      exchangeTx.transactionId &&
+      userTx.transactionId === exchangeTx.transactionId
+  );
+}
+
 function scoreCandidate(candidate) {
   return candidate.deltas.timestampSeconds + candidate.deltas.quantityPct * 1000;
 }
 
+function isWithinMatchTolerance(candidate, tolerance) {
+  return (
+    candidate.deltas.timestampSeconds <= tolerance.timestampToleranceSeconds &&
+    candidate.deltas.quantityPct <= tolerance.quantityTolerancePct
+  );
+}
+
+function isWithinConflictTolerance(candidate, tolerance) {
+  return (
+    candidate.deltas.timestampSeconds <= tolerance.conflictWindowSeconds &&
+    candidate.deltas.quantityPct <= tolerance.conflictQuantityTolerancePct
+  );
+}
+
 function findBestCandidate(userTx, exchangePool, tolerance) {
+  const sameIdCandidate = exchangePool.find((exchangeTx) =>
+    hasSameTransactionId(userTx, exchangeTx)
+  );
+
+  if (sameIdCandidate) {
+    const candidate = {
+      exchangeTx: sameIdCandidate,
+      deltas: getDeltas(userTx, sameIdCandidate),
+      matchedBy: "transaction_id"
+    };
+
+    return {
+      ...candidate,
+      category:
+        canCompare(userTx, sameIdCandidate) && isWithinMatchTolerance(candidate, tolerance)
+          ? "MATCHED"
+          : "CONFLICTING"
+    };
+  }
+
   const comparable = exchangePool
     .filter((exchangeTx) => canCompare(userTx, exchangeTx))
     .map((exchangeTx) => ({
       exchangeTx,
-      deltas: getDeltas(userTx, exchangeTx)
+      deltas: getDeltas(userTx, exchangeTx),
+      matchedBy: "proximity"
     }));
 
   if (!comparable.length) return null;
 
   const matched = comparable
-    .filter(
-      (candidate) =>
-        candidate.deltas.timestampSeconds <= tolerance.timestampToleranceSeconds &&
-        candidate.deltas.quantityPct <= tolerance.quantityTolerancePct
-    )
+    .filter((candidate) => isWithinMatchTolerance(candidate, tolerance))
     .sort((a, b) => scoreCandidate(a) - scoreCandidate(b));
 
   if (matched.length) {
     return { ...matched[0], category: "MATCHED" };
   }
 
-  const conflictWindowSeconds = Math.max(tolerance.timestampToleranceSeconds * 6, 3600);
   const conflicting = comparable
-    .filter(
-      (candidate) =>
-        candidate.deltas.timestampSeconds <= conflictWindowSeconds ||
-        candidate.deltas.quantityPct <= tolerance.quantityTolerancePct
-    )
+    .filter((candidate) => isWithinConflictTolerance(candidate, tolerance))
     .sort((a, b) => scoreCandidate(a) - scoreCandidate(b));
 
   if (conflicting.length) {
@@ -68,9 +102,21 @@ function findBestCandidate(userTx, exchangePool, tolerance) {
   return null;
 }
 
-function buildConflictReason(deltas, tolerance) {
+function buildConflictReason(entry, tolerance) {
+  const { userTx, exchangeTx, deltas, matchedBy } = entry;
   const reasons = [];
 
+  if (matchedBy === "transaction_id") reasons.push("same transaction_id");
+  if (userTx && exchangeTx && userTx.normalized.asset !== exchangeTx.normalized.asset) {
+    reasons.push(`asset differs (${userTx.normalized.asset} vs ${exchangeTx.normalized.asset})`);
+  }
+  if (
+    userTx &&
+    exchangeTx &&
+    !areTypesCompatible(userTx.normalized.type, exchangeTx.normalized.type)
+  ) {
+    reasons.push(`type differs (${userTx.normalized.type} vs ${exchangeTx.normalized.type})`);
+  }
   if (deltas.timestampSeconds > tolerance.timestampToleranceSeconds) {
     reasons.push(`timestamp differs by ${Math.round(deltas.timestampSeconds)}s`);
   }
